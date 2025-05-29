@@ -1,0 +1,15 @@
+{
+  "name": "wptoolxd",
+  "version": "1.0.0",
+  "main": "wp.js",
+  "scripts": {
+    "start": "node wp.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^4.5.0",   // (या तुम्हारे इस्तेमाल का latest version)
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "qrcode-terminal": "^0.12.0",
+    "@hapi/boom": "^9.1.4"
+  }
+}
