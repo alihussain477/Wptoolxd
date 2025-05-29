@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WhatsApp Auto Sender</title>
+<style>
+  body {
+    background-color: #111;
+    color: #0f0;
+    font-family: monospace;
+    padding: 20px;
+    max-width: 700px;
+    margin: auto;
+  }
+  h1, h2 {
+    text-align: center;
+    color: cyan;
+  }
+  label, input, select, textarea, button {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 16px;
+    background: #000;
+    color: #0f0;
+    border: 1px solid #0ff;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  button {
+    background-color: #0f0;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  #qrCode {
+    text-align: center;
+    margin-top: 15px;
+  }
+  .log {
+    white-space: pre-wrap;
+    background: #000;
+    color: #0f0;
+    padding: 10px;
+    border: 1px solid #0ff;
+    height: 200px;
+    overflow-y: auto;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+
+<h1>WhatsApp Auto Sender</h1>
+
+<div>
+  <label for="number">WhatsApp Number (without + or 00)</label>
+  <input type="text" id="number" placeholder="e.g. 919876543210" />
+  <button id="genQR">Generate QR & Login</button>
+</div>
+
+<div id="qrCode"></div>
+
+<hr/>
+
+<div>
+  <label for="target">Target Number (e.g. 919123456789)</label>
+  <input type="text" id="target" />
+  
+  <label for="delay">Delay (seconds)</label>
+  <input type="number" id="delay" value="2" />
+  
+  <label for="messageFile">Upload Message File (.txt)</label>
+  <input type="file" id="messageFile" accept=".txt" />
+  
+  <button id="startSend">Start Sending Messages</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const genQRBtn = document.getElementById("genQR");
+const qrCodeDiv = document.getElementById("qrCode");
+const logEl = document.getElementById("log");
+
+genQRBtn.onclick = async () => {
+  const number = document.getElementById("number").value.trim();
+  if (!number) {
+    alert("Please enter your WhatsApp number");
+    return;
+  }
+  qrCodeDiv.innerHTML = "Generating QR code... Please wait and scan in WhatsApp.";
+  logEl.innerText = "";
+  try {
+    const resp = await fetch("/generate-qr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number })
+    });
+    const data = await resp.json();
+    if (data.error) {
+      qrCodeDiv.innerHTML = "Error: " + data.error;
+      return;
+    }
+    qrCodeDiv.innerHTML = "QR generation started. Scan the QR from terminal (Node.js console).";
+
+  } catch (err) {
+    qrCodeDiv.innerHTML = "Error starting QR generation.";
+  }
+};
+
+document.getElementById("startSend").onclick = () => {
+  const number = document.getElementById("number").value.trim();
+  const target = document.getElementById("target").value.trim();
+  const delay = parseInt(document.getElementById("delay").value);
+  const fileInput = document.getElementById("messageFile");
+
+  if (!number || !target) {
+    alert("Please enter both WhatsApp number and target number.");
+    return;
+  }
+  if (!fileInput.files.length) {
+    alert("Please upload a message .txt file.");
+    return;
+  }
+
+  logEl.innerText = "Reading message file...\n";
+
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const lines = e.target.result.split("\n").filter(Boolean);
+    logEl.innerText += `Loaded ${lines.length} messages.\n`;
+
+    for (const line of lines) {
+      logEl.innerText += `[${new Date().toLocaleTimeString()}] Sending to ${target}: ${line}\n`;
+      try {
+        const res = await fetch('/send-message', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ number, target, message: line })
+        });
+        const result = await res.json();
+        if (result.error) {
+          logEl.innerText += `Error: ${result.error}\n`;
+        }
+      } catch (err) {
+        logEl.innerText += `Send error: ${err.message}\n`;
+      }
+      await new Promise(r => setTimeout(r, delay * 1000));
+    }
+    logEl.innerText += "All messages sent.\n";
+  };
+  reader.readAsText(file);
+};
+</script>
+
+</body>
+</html>
